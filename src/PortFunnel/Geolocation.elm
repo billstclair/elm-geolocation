@@ -330,7 +330,7 @@ movementEncoder : Movement -> Value
 movementEncoder movement =
     case movement of
         Static ->
-            JE.object [ ( "static", JE.bool True ) ]
+            JE.string "static"
 
         Moving { speed, degreesFromNorth } ->
             JE.object
@@ -402,17 +402,79 @@ encode message =
 
 getLocationDecoder : Decoder Message
 getLocationDecoder =
-    JD.succeed Startup
+    JD.map GetLocation optionsDecoder
+
+
+optionsDecoder : Decoder Options
+optionsDecoder =
+    JD.map3 Options
+        (JD.field "enableHighAccuracy" JD.bool)
+        (JD.field "timeout" <| JD.nullable JD.int)
+        (JD.field "maximumAge" <| JD.nullable JD.int)
+
+
+altitudeDecoder : Decoder Altitude
+altitudeDecoder =
+    JD.map2 Altitude
+        (JD.field "value" JD.float)
+        (JD.field "accuracy" JD.float)
+
+
+movementDecoder : Decoder Movement
+movementDecoder =
+    JD.oneOf
+        [ JD.string
+            |> JD.andThen
+                (\s ->
+                    if s == "static" then
+                        JD.succeed Static
+
+                    else
+                        JD.fail "String not \"static\""
+                )
+        , JD.map2
+            (\speed degreesFromNorth ->
+                Moving
+                    { speed = speed
+                    , degreesFromNorth = degreesFromNorth
+                    }
+            )
+            (JD.field "speed" JD.float)
+            (JD.field "degreesFromNorth" JD.float)
+        ]
 
 
 returnedLocationDecoder : Decoder Message
 returnedLocationDecoder =
-    JD.succeed Startup
+    JD.map ReturnedLocation locationDecoder
+
+
+locationDecoder : Decoder Location
+locationDecoder =
+    JD.map6 Location
+        (JD.field "latitude" JD.float)
+        (JD.field "longitude" JD.float)
+        (JD.field "accuracy" JD.float)
+        (JD.field "altitude" <| JD.nullable altitudeDecoder)
+        (JD.field "movement" <| JD.nullable movementDecoder)
+        (JD.map Time.millisToPosix (JD.field "timestamp" JD.int))
 
 
 returnedErrorDecoder : Decoder Message
 returnedErrorDecoder =
-    JD.succeed Startup
+    JD.map ReturnedError errorDecoder
+
+
+errorDecoder : Decoder Error
+errorDecoder =
+    JD.oneOf
+        [ JD.map PermissionDenied
+            (JD.field "PermissionDenied" JD.string)
+        , JD.map LocationUnavailable
+            (JD.field "LocationUnavailable" JD.string)
+        , JD.map Timeout
+            (JD.field "Timeout" JD.string)
+        ]
 
 
 decodeValue : Decoder a -> Value -> Result String a
@@ -526,7 +588,7 @@ toString message =
             "Startup"
 
         GetLocation options ->
-            "GetLocation (" ++ optionsToString options ++ ")"
+            "GetLocation " ++ optionsToString options
 
         SendChanges ->
             "SendChanges"
@@ -535,7 +597,7 @@ toString message =
             "StopChanges"
 
         ReturnedLocation location ->
-            "ReturnedLocation (" ++ locationToString location ++ ")"
+            "ReturnedLocation " ++ locationToString location
 
         ReturnedError error ->
             "ReturnedError (" ++ errorToString error ++ ")"
@@ -543,17 +605,60 @@ toString message =
 
 optionsToString : Options -> String
 optionsToString options =
-    "TODO"
+    let
+        { enableHighAccuracy, timeout, maximumAge } =
+            options
+    in
+    "{ enableHighAccuracy: "
+        ++ (if enableHighAccuracy then
+                "True"
+
+            else
+                "False"
+           )
+        ++ ", timeout: "
+        ++ (case timeout of
+                Nothing ->
+                    "Nothing"
+
+                Just time ->
+                    String.fromInt time
+           )
+        ++ ", maximumAge: "
+        ++ (case maximumAge of
+                Nothing ->
+                    "Nothing"
+
+                Just age ->
+                    String.fromInt age
+           )
+        ++ " }"
 
 
 locationToString : Location -> String
 locationToString location =
-    "TODO"
+    let
+        { latitude, longitude } =
+            location
+    in
+    "{ latitude: "
+        ++ String.fromFloat latitude
+        ++ ", longitude: "
+        ++ String.fromFloat longitude
+        ++ " }"
 
 
 errorToString : Error -> String
 errorToString error =
-    "TODO"
+    case error of
+        PermissionDenied string ->
+            "PermissionDenied \"" ++ string ++ "\""
+
+        LocationUnavailable string ->
+            "LocationUnavailable \"" ++ string ++ "\""
+
+        Timeout string ->
+            "Timeout \"" ++ string ++ "\""
 
 
 {-| Convert a `Message` to the same JSON string that gets sent
