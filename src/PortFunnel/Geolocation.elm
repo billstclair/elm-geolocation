@@ -3,7 +3,13 @@ module PortFunnel.Geolocation exposing
     , changes, stopChanges
     , now, Error(..)
     , nowWith, Options, defaultOptions
-    , Message
+    , Message, State
+    , moduleName, moduleDesc, commander
+    , initialState
+    , send
+    , toString, toJsonString
+    , makeSimulatedCmdPort
+    , isLoaded
     )
 
 {-| Find out about where a user’s device is located. [Geolocation API][geo].
@@ -30,8 +36,49 @@ module PortFunnel.Geolocation exposing
 
 @docs nowWith, Options, defaultOptions
 
+
+# The Standard PortFunnel interface
+
+
+## Types
+
+@docs Message, State
+
+
+## Components of a `PortFunnel.FunnelSpec`
+
+@docs moduleName, moduleDesc, commander
+
+
+## Initial `State`
+
+@docs initialState
+
+
+## Sending a `Message` out the `Cmd` Port
+
+@docs send
+
+
+## Conversion to Strings
+
+@docs toString, toJsonString
+
+
+## Simulator
+
+@docs makeSimulatedCmdPort
+
+
+## Non-standard Functions
+
+@docs isLoaded
+
 -}
 
+import Json.Decode as JD exposing (Decoder)
+import Json.Encode as JE exposing (Value)
+import PortFunnel exposing (GenericMessage, ModuleDesc)
 import Time exposing (Posix)
 
 
@@ -106,7 +153,8 @@ Opaque type, returned by `now`, `nowWith`, `changes`, `stopChanges`.
 
 -}
 type Message
-    = GetLocation Options
+    = Startup
+    | GetLocation Options
     | SendChanges
     | StopChanges
     | ReturnedLocation Location
@@ -183,3 +231,339 @@ defaultOptions =
     , timeout = Nothing
     , maximumAge = Nothing
     }
+
+
+
+---
+--- The PortFunnel default interface
+---
+
+
+{-| Internal module state.
+-}
+type State
+    = State
+        { isLoaded : Bool
+        }
+
+
+{-| Returns true if a `Startup` message has been processed.
+
+This is sent by the port code after it has initialized.
+
+-}
+isLoaded : State -> Bool
+isLoaded (State state) =
+    state.isLoaded
+
+
+{-| Responses.
+
+`LocationResponse` is returned from a `now` or `nowWith` message, and for changes if you've subscriped with a `changes` message.
+
+`ErrorResponse` is returned if there is an error.
+
+`NoResponse` is sent if the processing code receives a message that is not a valid response message. Shouldn't happen.
+
+-}
+type Response
+    = LocationResponse Location
+    | ErrorResponse Error
+    | NoResponse
+
+
+{-| The initial, empty state, so the application can initialize its state.
+-}
+initialState : State
+initialState =
+    State
+        { isLoaded = False
+        }
+
+
+{-| The name of this module: "Geolocation".
+-}
+moduleName : String
+moduleName =
+    "Geolocation"
+
+
+{-| Our module descriptor.
+-}
+moduleDesc : ModuleDesc Message State Response
+moduleDesc =
+    PortFunnel.makeModuleDesc moduleName encode decode process
+
+
+optionsEncoder : Options -> Value
+optionsEncoder options =
+    JE.object
+        [ ( "enableHighAccuracy", JE.bool options.enableHighAccuracy )
+        , ( "timeout"
+          , case options.timeout of
+                Nothing ->
+                    JE.null
+
+                Just to ->
+                    JE.int to
+          )
+        , ( "maximumAge"
+          , case options.maximumAge of
+                Nothing ->
+                    JE.null
+
+                Just age ->
+                    JE.int age
+          )
+        ]
+
+
+altitudeEncoder : Altitude -> Value
+altitudeEncoder altitude =
+    JE.object
+        [ ( "value", JE.float altitude.value )
+        , ( "accuracy", JE.float altitude.accuracy )
+        ]
+
+
+movementEncoder : Movement -> Value
+movementEncoder movement =
+    case movement of
+        Static ->
+            JE.object [ ( "static", JE.bool True ) ]
+
+        Moving { speed, degreesFromNorth } ->
+            JE.object
+                [ ( "speed", JE.float speed )
+                , ( "degreesFromNorth", JE.float degreesFromNorth )
+                ]
+
+
+locationEncoder : Location -> Value
+locationEncoder location =
+    JE.object
+        [ ( "latitude", JE.float location.latitude )
+        , ( "longitude", JE.float location.longitude )
+        , ( "accuracy", JE.float location.accuracy )
+        , ( "altitude"
+          , case location.altitude of
+                Nothing ->
+                    JE.null
+
+                Just alt ->
+                    altitudeEncoder alt
+          )
+        , ( "movement"
+          , case location.movement of
+                Nothing ->
+                    JE.null
+
+                Just move ->
+                    movementEncoder move
+          )
+        , ( "timestamp", JE.int <| Time.posixToMillis location.timestamp )
+        ]
+
+
+errorEncoder : Error -> Value
+errorEncoder error =
+    case error of
+        PermissionDenied string ->
+            JE.object [ ( "PermissionDenied", JE.string string ) ]
+
+        LocationUnavailable string ->
+            JE.object [ ( "LocationUnavailable", JE.string string ) ]
+
+        Timeout string ->
+            JE.object [ ( "Timeout", JE.string string ) ]
+
+
+encode : Message -> GenericMessage
+encode message =
+    case message of
+        GetLocation options ->
+            GenericMessage moduleName "getlocation" <| optionsEncoder options
+
+        SendChanges ->
+            GenericMessage moduleName "sendchanges" JE.null
+
+        StopChanges ->
+            GenericMessage moduleName "stopchanges" JE.null
+
+        ReturnedLocation location ->
+            GenericMessage moduleName "location" <| locationEncoder location
+
+        ReturnedError error ->
+            GenericMessage moduleName "error" <| errorEncoder error
+
+        Startup ->
+            GenericMessage moduleName "startup" JE.null
+
+
+getLocationDecoder : Decoder Message
+getLocationDecoder =
+    JD.succeed Startup
+
+
+returnedLocationDecoder : Decoder Message
+returnedLocationDecoder =
+    JD.succeed Startup
+
+
+returnedErrorDecoder : Decoder Message
+returnedErrorDecoder =
+    JD.succeed Startup
+
+
+decodeValue : Decoder a -> Value -> Result String a
+decodeValue decoder value =
+    case JD.decodeValue decoder value of
+        Err error ->
+            Err <| JD.errorToString error
+
+        Ok a ->
+            Ok a
+
+
+decode : GenericMessage -> Result String Message
+decode { tag, args } =
+    case tag of
+        "getlocation" ->
+            decodeValue getLocationDecoder args
+
+        "sendchanges" ->
+            Ok SendChanges
+
+        "stopchanges" ->
+            Ok StopChanges
+
+        "location" ->
+            decodeValue returnedLocationDecoder args
+
+        "error" ->
+            decodeValue returnedErrorDecoder args
+
+        "startup" ->
+            Ok Startup
+
+        _ ->
+            Err <| "Unknown Echo tag: " ++ tag
+
+
+{-| Send a `Message` through a `Cmd` port.
+-}
+send : (Value -> Cmd msg) -> Message -> Cmd msg
+send =
+    PortFunnel.sendMessage moduleDesc
+
+
+process : Message -> State -> ( State, Response )
+process message ((State state) as unboxed) =
+    case message of
+        Startup ->
+            ( State { state | isLoaded = True }
+            , NoResponse
+            )
+
+        ReturnedLocation location ->
+            ( unboxed, LocationResponse location )
+
+        ReturnedError location ->
+            ( unboxed, ErrorResponse location )
+
+        _ ->
+            ( unboxed, NoResponse )
+
+
+{-| Responsible for sending a `CmdResponse` back througt the port.
+
+Called by `PortFunnel.appProcess` for each response returned by `process`.
+
+Always returns `Cmd.none`.
+
+-}
+commander : (GenericMessage -> Cmd msg) -> Response -> Cmd msg
+commander _ _ =
+    Cmd.none
+
+
+defaultLocation : Location
+defaultLocation =
+    { latitude = 0
+    , longitude = 0
+    , accuracy = 0
+    , altitude = Nothing
+    , movement = Nothing
+    , timestamp = Time.millisToPosix 0
+    }
+
+
+simulator : Message -> Maybe Message
+simulator message =
+    case message of
+        GetLocation _ ->
+            Just <| ReturnedLocation defaultLocation
+
+        _ ->
+            Nothing
+
+
+{-| Make a simulated `Cmd` port.
+-}
+makeSimulatedCmdPort : (Value -> msg) -> Value -> Cmd msg
+makeSimulatedCmdPort =
+    PortFunnel.makeSimulatedFunnelCmdPort
+        moduleDesc
+        simulator
+
+
+{-| Convert a `Message` to a nice-looking human-readable string.
+-}
+toString : Message -> String
+toString message =
+    case message of
+        Startup ->
+            "Startup"
+
+        GetLocation options ->
+            "GetLocation (" ++ optionsToString options ++ ")"
+
+        SendChanges ->
+            "SendChanges"
+
+        StopChanges ->
+            "StopChanges"
+
+        ReturnedLocation location ->
+            "ReturnedLocation (" ++ locationToString location ++ ")"
+
+        ReturnedError error ->
+            "ReturnedError (" ++ errorToString error ++ ")"
+
+
+optionsToString : Options -> String
+optionsToString options =
+    "TODO"
+
+
+locationToString : Location -> String
+locationToString location =
+    "TODO"
+
+
+errorToString : Error -> String
+errorToString error =
+    "TODO"
+
+
+{-| Convert a `Message` to the same JSON string that gets sent
+
+over the wire to the JS code.
+
+-}
+toJsonString : Message -> String
+toJsonString message =
+    message
+        |> encode
+        |> PortFunnel.encodeGenericMessage
+        |> JE.encode 0
