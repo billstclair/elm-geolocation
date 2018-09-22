@@ -1,16 +1,19 @@
 {
     "type": "package",
-    "name": "elm-lang/geolocation",
+    "name": "billstclair/elm-geolocation",
     "summary": "Geolocation, find your latitude and longitude.",
     "license": "BSD-3-Clause",
-    "version": "1.0.3",
+    "version": "1.0.0",
     "exposed-modules": [
-        "Geolocation"
+        "PortFunnel.Geolocation"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
-        "elm-lang/core": "6.0.0 <= v < 7.0.0"
+        "elm/core": "1.0.0 <= v < 2.0.0",
+        "elm/json": "1.0.0 <= v < 2.0.0",
+        "elm/time": "1.0.0 <= v < 2.0.0"
     },
-    "test-dependencies": {},
-    "effect-modules": true
+    "test-dependencies": {
+        "elm-explorations/test": "1.0.0 <= v < 2.0.0"
+    }
 }
