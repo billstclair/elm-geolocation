@@ -1,7 +1,7 @@
 //////////////////////////////////////////////////////////////////////
 //
 // elm.js.dummy
-// PortFunnel Top Level HTML
+// Dummy Elm JS file.
 // Copyright (c) 2018 Bill St. Clair <billstclair@gmail.com>
 // Some rights reserved.
 // Distributed under the MIT License
@@ -18,11 +18,11 @@
 //////////////////////////////////////////////////////////////////////
 
 var ports = {};
-ports.portFunnelCmd = {};
-ports.portFunnelCmd.subscribe = function() {};
-ports.portFunnelSub = {};
-ports.portFunnelSub.send = function(value) {
-  console.log('portFunnelSub.send(', value , ')');
+ports.cmdPort = {};
+ports.cmdPort.subscribe = function() {};
+ports.subPort = {};
+ports.subPort.send = function(value) {
+  console.log('subPort.send(', value , ')');
 };
 
 var app = {}
