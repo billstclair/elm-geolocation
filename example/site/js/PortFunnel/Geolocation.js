@@ -5,7 +5,7 @@
 // Copyright (c) 2018 Bill St. Clair <billstclair@gmail.com>
 // Portions Copyright (c) 2015-2016, Evan Czaplicki
 // All rights reserved.
-// Distributed under the MIT License
+// Distributed under the BSD-3-Clause License
 // See LICENSE
 //
 //////////////////////////////////////////////////////////////////////
@@ -20,10 +20,17 @@
   PortFunnel.modules[moduleName].cmd = dispatcher;
 
   // Let the Elm code know we've started
-  sub.send({ module: moduleName,
-             tag: "startup",
-             args : null
-           });
+  sendObject("startup", null);
+
+  function sendObject(tag, args) {
+    sub.send({ moduleName: moduleName,
+               tag: tag,
+               args: args
+             });
+  }
+
+
+  // Elm command dispatching
 
   var tagTable =
       { getlocation: getLocation,
@@ -36,18 +43,6 @@
     if (f) {
       return f(args);
     }
-  }
-
-  function sendObject(tag, args) {
-    sub.send({ moduleName: moduleName,
-               tag: tag,
-               args: args
-             });
-  }
-
-  function sendPosition(rawPosition) {
-    var location = encodeLocation(rawPosition);
-    sendObject("location", location);
   }
 
   function getLocation(args) {
@@ -75,6 +70,14 @@
       watching = false;
       navigator.geolocation.clearWatch(watchid);
     }
+  }
+
+
+  // Send a position through the subscription port
+
+  function sendPosition(rawPosition) {
+    var location = encodeLocation(rawPosition);
+    sendObject("location", location);
   }
 
 
