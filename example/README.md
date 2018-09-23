@@ -2,7 +2,7 @@
 
 This directory contains an example of using the `PortFunnel.Geolocation` module. To run it in simulation mode:
 
-```elm
+```bash
 $ git clone git@github.com:billstclair/elm-geolocation.git
 $ cd elm-geolocation/example
 $ elm reactor
