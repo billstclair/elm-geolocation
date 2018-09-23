@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Build the example, copy it to my billstclair.github.io project,
+# commit, and push to GitHub.
+# This won't be very useful to anybody but me.
+
+elm make src/Main.elm --output site/elm.js
+rsync -av site/ ~/elm/billstclair.github.io/elm-geolocation/
+cd ~/elm/billstclair.github.io/elm-geolocation
+git add .
+git commit -am "Update elm-geolocation example."
+git push

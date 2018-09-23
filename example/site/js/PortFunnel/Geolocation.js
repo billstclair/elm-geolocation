@@ -23,7 +23,7 @@
   sendObject("startup", null);
 
   function sendObject(tag, args) {
-    sub.send({ moduleName: moduleName,
+    sub.send({ module: moduleName,
                tag: tag,
                args: args
              });

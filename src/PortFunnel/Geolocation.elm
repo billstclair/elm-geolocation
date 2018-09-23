@@ -1,15 +1,15 @@
 module PortFunnel.Geolocation exposing
     ( Location, Altitude, Movement(..)
-    , changes, stopChanges
+    , watchChanges, stopWatching
     , now, Error(..)
     , nowWith, Options, defaultOptions
-    , Message, State
+    , Message, State, Response(..)
     , moduleName, moduleDesc, commander
     , initialState
     , send
     , toString, toJsonString
     , makeSimulatedCmdPort
-    , isLoaded
+    , isLoaded, errorToString
     )
 
 {-| Find out about where a user’s device is located. [Geolocation API][geo].
@@ -24,7 +24,7 @@ module PortFunnel.Geolocation exposing
 
 # Subscribe to Changes
 
-@docs changes, stopChanges
+@docs watchChanges, stopWatching
 
 
 # Get Current Location
@@ -42,7 +42,7 @@ module PortFunnel.Geolocation exposing
 
 ## Types
 
-@docs Message, State
+@docs Message, State, Response
 
 
 ## Components of a `PortFunnel.FunnelSpec`
@@ -72,7 +72,7 @@ module PortFunnel.Geolocation exposing
 
 ## Non-standard Functions
 
-@docs isLoaded
+@docs isLoaded, errorToString
 
 -}
 
@@ -177,15 +177,15 @@ nowWith =
 
 {-| Enable receipt of changes as the browser device moves.
 -}
-changes : Message
-changes =
+watchChanges : Message
+watchChanges =
     SendChanges
 
 
 {-| Stop receiving changes as the browser device moves.
 -}
-stopChanges : Message
-stopChanges =
+stopWatching : Message
+stopWatching =
     StopChanges
 
 
