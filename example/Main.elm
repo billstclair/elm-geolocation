@@ -247,9 +247,17 @@ ps paragraphs =
         |> div []
 
 
+fontSize =
+    style "font-size" "24px"
+
+
+buttonFontSize =
+    style "font-size" "36px"
+
+
 view : Model -> Html Msg
 view model =
-    div []
+    div [ fontSize ]
         [ h2 [] [ text "Geolocation Example" ]
         , case model.error of
             Nothing ->
@@ -259,9 +267,16 @@ view model =
                 p [ style "color" "red" ]
                     [ text err ]
         , p []
-            [ button [ onClick GetLocation ]
+            [ button
+                [ onClick GetLocation
+                , buttonFontSize
+                ]
                 [ text "Get" ]
-            , button [ onClick ToggleWatch ]
+            , text " "
+            , button
+                [ onClick ToggleWatch
+                , buttonFontSize
+                ]
                 [ text <|
                     if model.watching then
                         "Unwatch"

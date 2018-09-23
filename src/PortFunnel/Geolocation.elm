@@ -551,12 +551,13 @@ commander _ _ =
 
 defaultLocation : Location
 defaultLocation =
-    { latitude = 0
-    , longitude = 0
-    , accuracy = 0
+    -- NoRedInk in San Francisco
+    { latitude = 37.7875982
+    , longitude = -122.4018747
+    , accuracy = 471
     , altitude = Nothing
     , movement = Nothing
-    , timestamp = Time.millisToPosix 0
+    , timestamp = Time.millisToPosix 1537666531262
     }
 
 
@@ -565,6 +566,9 @@ simulator message =
     case message of
         GetLocation _ ->
             Just <| ReturnedLocation defaultLocation
+
+        SendChanges ->
+            simulator <| GetLocation defaultOptions
 
         _ ->
             Nothing
