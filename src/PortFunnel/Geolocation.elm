@@ -652,6 +652,8 @@ locationToString location =
         ++ " }"
 
 
+{-| Convert an `Error` to a string for simple printing.
+-}
 errorToString : Error -> String
 errorToString error =
     case error of
