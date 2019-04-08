@@ -2,7 +2,7 @@
 //
 // Geolocation.js
 // JavaScript runtime code for Elm PortFunnel.Geolocation module.
-// Copyright (c) 2018 Bill St. Clair <billstclair@gmail.com>
+// Copyright (c) 2018-2019 Bill St. Clair <billstclair@gmail.com>
 // Portions Copyright (c) 2015-2016, Evan Czaplicki
 // All rights reserved.
 // Distributed under the BSD-3-Clause License
@@ -10,17 +10,28 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-(function() {
+(function(scope) {
   var moduleName = 'Geolocation';
-  var sub = PortFunnel.sub;
-  if (!sub) {
-    return;
+  var sub;
+
+  function init() {
+    var PortFunnel = scope.PortFunnel;
+    if (!PortFunnel || !PortFunnel.sub || !PortFunnel.modules) {
+      // Loop until PortFunnel.js has initialized itself.
+      setTimeout(init, 10);
+      return;
+    }
+    
+    sub = PortFunnel.sub;
+    PortFunnel.modules[moduleName] = { cmd: dispatcher };
+
+    // Let the Elm code know we've started
+    sub.send({ module: moduleName,
+               tag: "startup",
+               args : null
+             });
   }
-
-  PortFunnel.modules[moduleName].cmd = dispatcher;
-
-  // Let the Elm code know we've started
-  sendObject("startup", null);
+  init();
 
   function sendObject(tag, args) {
     sub.send({ module: moduleName,
@@ -145,4 +156,4 @@
     return res;
   }
 
-})();
+})(this);

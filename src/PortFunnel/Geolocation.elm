@@ -1,5 +1,5 @@
 module PortFunnel.Geolocation exposing
-    ( Location, Altitude, Movement(..)
+    ( Location, Altitude, Movement(..), JSVersion
     , watchChanges, stopWatching
     , now, Error(..)
     , nowWith, Options, defaultOptions
@@ -19,7 +19,7 @@ module PortFunnel.Geolocation exposing
 
 # Location
 
-@docs Location, Altitude, Movement
+@docs Location, Altitude, Movement, JSVersion
 
 
 # Subscribe to Changes
@@ -678,3 +678,12 @@ toJsonString message =
         |> encode
         |> PortFunnel.encodeGenericMessage
         |> JE.encode 0
+
+
+{-| This is used to force a major version bump when the JS changes.
+
+You'll usually not use it for anything.
+
+-}
+type alias JSVersion =
+    { v4_1 : () }
